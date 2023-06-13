@@ -1,0 +1,111 @@
+import mysql.connector
+
+# Підключення до бази даних
+mydb = mysql.connector.connect(
+  host="localhost",
+  user="yourusername",
+  password="yourpassword",
+  database="yourdatabase"
+)
+
+# Створення таблиці students
+mycursor = mydb.cursor()
+mycursor.execute("CREATE TABLE IF NOT EXISTS students (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255), age INT, email VARCHAR(255))")
+
+# Додавання 5 студентів
+students = [
+  ("John Doe", 20, "john@example.com"),
+  ("Jane Smith", 22, "jane@example.com"),
+  ("Mike Johnson", 19, "mike@example.com"),
+  ("Emily Davis", 21, "emily@example.com"),
+  ("David Brown", 18, "david@example.com")
+]
+mycursor.executemany("INSERT INTO students (name, age, email) VALUES (%s, %s, %s)", students)
+mydb.commit()
+
+# Вибірка всіх студентів
+mycursor.execute("SELECT * FROM students")
+results = mycursor.fetchall()
+for student in results:
+  print(student)
+
+# Вибірка студента за ім'ям
+name = "John Doe"
+mycursor.execute("SELECT * FROM students WHERE name = %s", (name,))
+result = mycursor.fetchone()
+print(result)
+
+# Оновлення віку студента
+student_id = 1
+new_age = 21
+mycursor.execute("UPDATE students SET age = %s WHERE id = %s", (new_age, student_id))
+mydb.commit()
+
+# Видалення студента за ідентифікатором
+student_id = 2
+mycursor.execute("DELETE FROM students WHERE id = %s", (student_id,))
+mydb.commit()
+
+# Використання транзакцій для додавання студентів
+try:
+  mydb.start_transaction()
+
+  # Додаткові два студенти
+  new_students = [
+    ("Sarah Wilson", 20, "sarah@example.com"),
+    ("Michael Thompson", 22, "michael@example.com")
+  ]
+  mycursor.executemany("INSERT INTO students (name, age, email) VALUES (%s, %s, %s)", new_students)
+  mydb.commit()
+except mysql.connector.Error as error:
+  print("Помилка: ", error)
+  mydb.rollback()
+
+# Створення таблиці courses
+mycursor.execute("CREATE TABLE IF NOT EXISTS courses (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(255), description VARCHAR(255), credits INT)")
+
+# Додавання 3 курсів
+courses = [
+  ("Mathematics", "Advanced calculus", 5),
+  ("Physics", "Quantum mechanics", 4),
+  ("Computer Science", "Python programming", 3)
+]
+mycursor.executemany("INSERT INTO courses (name, description, credits) VALUES (%s, %s, %s)", courses)
+mydb.commit()
+
+# Створення таблиці student_courses
+mycursor.execute("CREATE TABLE IF NOT EXISTS student_courses (student_id INT, course_id INT, FOREIGN KEY (student_id) REFERENCES students(id), FOREIGN KEY (course_id) REFERENCES courses(id))")
+
+# Заповнення таблиці student_courses
+student_courses = [
+  (1, 1),  # John Doe - Mathematics
+  (1, 3),  # John Doe - Computer Science
+  (3, 2),  # Mike Johnson - Physics
+  (4, 1),  # Emily Davis - Mathematics
+  (5, 3)   # David Brown - Computer Science
+]
+mycursor.executemany("INSERT INTO student_courses (student_id, course_id) VALUES (%s, %s)", student_courses)
+mydb.commit()
+
+# Вибірка студентів, які вибрали певний курс
+course_id = 1
+mycursor.execute("SELECT students.* FROM students INNER JOIN student_courses ON students.id = student_courses.student_id WHERE student_courses.course_id = %s", (course_id,))
+results = mycursor.fetchall()
+for student in results:
+  print(student)
+
+# Вибірка курсів, які вибрали студенти за певним ім'ям
+student_name = "John Doe"
+mycursor.execute("SELECT courses.* FROM courses INNER JOIN student_courses ON courses.id = student_courses.course_id INNER JOIN students ON students.id = student_courses.student_id WHERE students.name = %s", (student_name,))
+results = mycursor.fetchall()
+for course in results:
+  print(course)
+
+# Вибірка студентів та їх курсів за допомогою JOIN
+mycursor.execute("SELECT students.name, courses.name FROM students INNER JOIN student_courses ON students.id = student_courses.student_id INNER JOIN courses ON courses.id = student_courses.course_id")
+results = mycursor.fetchall()
+for row in results:
+  print(f"Student: {row[0]}, Course: {row[1]}")
+
+# Закриття з'єднання з базою даних
+mydb.close()
